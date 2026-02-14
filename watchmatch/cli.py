@@ -11,8 +11,14 @@ def run(watchlist: str):
     movies = canonicalize_raw_movies(raw_movies)
 
     client = TMDbClient()
-    enriched = [client.enrich_movie(m) for m in movies]
-
-    typer.echo(f"Enriched {len(enriched)} movies with TMDb IDs:")
-    for m in enriched:
-        typer.echo(f"- {m.title} ({m.year}) imdb: {m.imdb_id} tmdb: {m.tmdb_id}")
+    for m in movies:
+        client.enrich_movie(m)
+        avail = client.get_watch_providers(m)
+        typer.echo(f"{m.title} ({m.year})")
+        if avail.flatrate:
+            typer.echo(f"  Flatrate: {', '.join([p.provider_name for p in avail.flatrate])}")
+        if avail.rent:
+            typer.echo(f"  Rent: {', '.join([p.provider_name for p in avail.rent])}")
+        if avail.buy:
+            typer.echo(f"  Buy: {', '.join([p.provider_name for p in avail.buy])}")
+        typer.echo("")

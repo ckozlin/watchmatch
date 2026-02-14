@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 import requests
-from watchmatch.models import Movie
+from watchmatch.models import Movie, Availability, ProviderPrice
 from typing import Optional
 
 # Load the .env in the repo root
@@ -39,3 +39,28 @@ class TMDbClient:
         movie.imdb_id = result.get("imdb_id")  # might be None
         movie.runtime = result.get("runtime")  # search result often null; full fetch later
         return movie
+
+    def get_watch_providers(self, movie: Movie, region: str = "US") -> Availability:
+        if not movie.tmdb_id:
+            return Availability()
+
+        url = f"{BASE_URL}/movie/{movie.tmdb_id}/watch/providers"
+        params = {"api_key": self.api_key}
+        resp = requests.get(url, params=params)
+        if resp.status_code != 200:
+            return Availability()
+
+        data = resp.json()
+        country_data = data.get("results", {}).get(region, {})
+        availability = Availability()
+
+        for category in ["flatrate", "rent", "buy"]:
+            for entry in country_data.get(category, []):
+                availability_item = ProviderPrice(
+                    provider_name=entry.get("provider_name"),
+                    logo_path=entry.get("logo_path"),
+                    display_priority=entry.get("display_priority")
+                )
+                getattr(availability, category).append(availability_item)
+
+        return availability
